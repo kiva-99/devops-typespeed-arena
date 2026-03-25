@@ -210,7 +210,7 @@ docker-compose down -v
 └── README.md                     # Этот файл
 ```
 ## Стратегия ветвления (GitFlow упрощённый)
-
+```
 main          ← только стабильные релизы (production)
 │
 develop       ← интеграционная ветка (staging)
@@ -219,7 +219,7 @@ develop       ← интеграционная ветка (staging)
 ├─ feature/postgresql-replication
 ├─ feature/terraform-yc-infra
 └─ hotfix/security-patch
-
+```
 ## ☁️ Стратегия деплоя: Гибридная модель
 
 Проект может быть развёрнут как на локальной машине разработчика одной командой docker-compose up, так и в облачной инфраструктуре с автоматическим масштабированием через Terraform. Это демонстрирует принцип портативности и Infrastructure as Code.
