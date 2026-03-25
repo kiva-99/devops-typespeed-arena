@@ -251,12 +251,12 @@ develop       ← интеграционная ветка (staging)
 └───────────────┘ └───────────────┘
 ```
 ### Application Tier (Backend HA)
-
+```
 -Минимум 2 реплики Flask-приложения за Nginx/Ingress
 -Health checks: /health endpoint для проверки готовности
 -Graceful shutdown: корректная остановка при деплое
 -Resource limits: CPU/RAM лимиты в Docker/K8s для предотвращения "шумных соседей"
-
+```
 ### 📊 Мониторинг и логирование (план)
 
 # Метрики (Prometheus)
