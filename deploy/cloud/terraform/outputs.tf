@@ -30,3 +30,19 @@ output "backup_access_key" {
   value     = yandex_iam_service_account_static_access_key.backup_sa_static_key.access_key
   sensitive = true
 }
+
+output "app_node_public_ip" {
+  value = yandex_compute_instance.app_node.network_interface[0].nat_ip_address
+}
+
+output "app_node_private_ip" {
+  value = yandex_compute_instance.app_node.network_interface[0].ip_address
+}
+
+output "db_node_public_ip" {
+  value = yandex_compute_instance.db_node.network_interface[0].nat_ip_address
+}
+
+output "db_node_private_ip" {
+  value = yandex_compute_instance.db_node.network_interface[0].ip_address
+}

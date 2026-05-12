@@ -58,3 +58,20 @@ variable "backup_sa_name" {
   type        = string
   default     = "typespeed-backup-sa"
 }
+
+variable "ssh_public_key" {
+  description = "SSH public key for VM access"
+  type        = string
+}
+
+variable "vm_image_family" {
+  description = "Ubuntu image family"
+  type        = string
+  default     = "ubuntu-2204-lts"
+}
+
+variable "vm_platform_id" {
+  description = "VM platform"
+  type        = string
+  default     = "standard-v3"
+}
