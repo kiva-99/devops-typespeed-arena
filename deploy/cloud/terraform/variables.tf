@@ -47,3 +47,14 @@ variable "my_ip_cidr" {
   description = "Your public IP address in CIDR format for SSH access"
   type        = string
 }
+
+variable "backup_bucket_name" {
+  description = "Object Storage bucket name for PostgreSQL backups"
+  type        = string
+}
+
+variable "backup_sa_name" {
+  description = "Service account name for backup uploads"
+  type        = string
+  default     = "typespeed-backup-sa"
+}

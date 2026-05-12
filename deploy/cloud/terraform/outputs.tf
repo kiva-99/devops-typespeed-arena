@@ -17,3 +17,16 @@ output "app_security_group_id" {
 output "db_security_group_id" {
   value = yandex_vpc_security_group.db_sg.id
 }
+
+output "backup_bucket_name" {
+  value = yandex_storage_bucket.backup_bucket.bucket
+}
+
+output "backup_service_account_id" {
+  value = yandex_iam_service_account.backup_sa.id
+}
+
+output "backup_access_key" {
+  value     = yandex_iam_service_account_static_access_key.backup_sa_static_key.access_key
+  sensitive = true
+}
