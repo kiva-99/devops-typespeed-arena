@@ -1,0 +1,22 @@
+[
+  {
+    "id": 1,
+    "content": "The quick brown fox jumps over the lazy dog",
+    "difficulty": "easy"
+  },
+  {
+    "id": 2,
+    "content": "DevOps is a set of practices that combines software development and IT operations",
+    "difficulty": "medium"
+  },
+  {
+    "id": 3,
+    "content": "Kubernetes is an open source system for automating deployment scaling and management of containerized applications",
+    "difficulty": "hard"
+  },
+  {
+    "id": 4,
+    "content": "Infrastructure as Code helps DevOps engineers describe cloud resources in configuration files",
+    "difficulty": "medium"
+  }
+]

@@ -1,0 +1,8 @@
+# app/backend/requirements.txt
+# 🔍 Этот файл говорит pip, какие библиотеки установить
+
+flask==3.0.0          # Веб-фреймворк для API
+flask-cors==4.0.0     # Разрешает запросы с фронтенда (CORS)
+psycopg2-binary==2.9.9 # Драйвер для подключения к PostgreSQL
+python-dotenv==1.0.0  # Загрузка переменных окружения из .env файла
+gunicorn==21.2.0      # Production-сервер для запуска Flask (позже)

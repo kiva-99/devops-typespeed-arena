@@ -1,0 +1,247 @@
+<!-- app/frontend/index.html -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TypeSpeed Arena 🚀</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
+        .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h1 { color: #333; text-align: center; }
+        .text-display { font-size: 1.2em; background: #e8f4f8; padding: 15px; border-radius: 4px; margin: 10px 0; min-height: 60px; }
+        input[type="text"] { width: 100%; padding: 10px; font-size: 1em; border: 2px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        input:focus { border-color: #4CAF50; outline: none; }
+        .stats { display: flex; gap: 20px; margin: 10px 0; font-weight: bold; }
+        .stat { background: #4CAF50; color: white; padding: 5px 15px; border-radius: 20px; }
+        button { background: #4CAF50; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 1em; margin: 5px; }
+        button:hover { background: #45a049; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .leaderboard { margin-top: 20px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #4CAF50; color: white; }
+        .hidden { display: none; }
+        #message { margin: 10px 0; padding: 10px; border-radius: 4px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⌨️ TypeSpeed Arena</h1>
+        
+        <!-- Экран выбора текста -->
+        <div id="select-screen">
+            <h3>Выберите текст для печати:</h3>
+            <div id="texts-list">Загрузка текстов...</div>
+            <button onclick="startTest()" id="start-btn" disabled>Начать тест</button>
+        </div>
+        
+        <!-- Экран теста -->
+        <div id="test-screen" class="hidden">
+            <div class="stats">
+                <span class="stat">⏱️ <span id="timer">60</span>с</span>
+                <span class="stat">⚡ WPM: <span id="wpm">0</span></span>
+                <span class="stat">🎯 Точность: <span id="accuracy">100</span>%</span>
+            </div>
+            <div class="text-display" id="current-text">Текст появится здесь...</div>
+            <input type="text" id="user-input" placeholder="Начните печатать..." autocomplete="off" disabled>
+            <div id="message"></div>
+        </div>
+        
+        <!-- Экран результатов -->
+        <div id="result-screen" class="hidden">
+            <h3>🎉 Тест завершён!</h3>
+            <p>Ваш результат: <strong><span id="final-wpm">0</span> WPM</strong>, точность: <span id="final-accuracy">0</span>%</p>
+            <button onclick="location.reload()">Попробовать ещё</button>
+            <button onclick="showLeaderboard()">Таблица лидеров 🏆</button>
+        </div>
+        
+        <!-- Таблица лидеров -->
+        <div id="leaderboard-screen" class="hidden leaderboard">
+            <h3>🏆 Топ-10 результатов</h3>
+            <table>
+                <thead><tr><th>#</th><th>Пользователь</th><th>WPM</th><th>Точность</th></tr></thead>
+                <tbody id="leaderboard-body"></tbody>
+            </table>
+            <button onclick="location.reload()">← Назад</button>
+        </div>
+    </div>
+
+    <script>
+        // 🔍 Настройки
+        const API_URL = '/api'; // Адрес бэкенда (поменяем на относительный для продакшена)
+        
+        // 🔍 Глобальные переменные
+        let texts = [];
+        let selectedText = null;
+        let timer = null;
+        let timeLeft = 60;
+        let startTime = null;
+        let typedChars = 0;
+        let errorCount = 0;
+        
+        // 🔍 Загрузка текстов при старте
+        async function loadTexts() {
+            try {
+                const response = await fetch(`${API_URL}/texts`);
+                const data = await response.json();
+                if (data.success) {
+                    texts = data.data;
+                    renderTextsList();
+                    document.getElementById('start-btn').disabled = false;
+                }
+            } catch (err) {
+                document.getElementById('texts-list').innerHTML = '<span style="color:red">Ошибка загрузки текстов. Проверьте, запущен ли сервер.</span>';
+                console.error('Error:', err);
+            }
+        }
+        
+        // 🔍 Отображение списка текстов
+        function renderTextsList() {
+            const container = document.getElementById('texts-list');
+            container.innerHTML = texts.map((text, index) => `
+                <div style="margin: 10px 0; padding: 10px; border: 1px solid #ddd; border-radius: 4px; cursor: pointer;" 
+                     onclick="selectText(${index})" 
+                     style="background: ${selectedText === index ? '#e8f4f8' : 'white'}">
+                    <strong>Текст #${text.id}</strong> (${text.difficulty}): ${text.content.substring(0, 50)}...
+                </div>
+            `).join('');
+        }
+        
+        // 🔍 Выбор текста
+        function selectText(index) {
+            selectedText = index;
+            renderTextsList();
+        }
+        
+        // 🔍 Начало теста
+        function startTest() {
+            if (selectedText === null) return;
+            
+            // Переключаем экраны
+            document.getElementById('select-screen').classList.add('hidden');
+            document.getElementById('test-screen').classList.remove('hidden');
+            
+            // Показываем текст
+            const text = texts[selectedText].content;
+            document.getElementById('current-text').textContent = text;
+            
+            // Активируем поле ввода
+            const input = document.getElementById('user-input');
+            input.disabled = false;
+            input.focus();
+            
+            // Запускаем таймер
+            startTime = Date.now();
+            timer = setInterval(updateStats, 1000);
+            
+            // Обработчик ввода
+            input.oninput = function(e) {
+                const typed = e.target.value;
+                typedChars = typed.length;
+                
+                // Считаем ошибки (упрощённо)
+                errorCount = 0;
+                for (let i = 0; i < typed.length; i++) {
+                    if (typed[i] !== text[i]) errorCount++;
+                }
+                
+                // Авто-отправка, если текст завершён
+                if (typed.length >= text.length) {
+                    finishTest();
+                }
+            };
+        }
+        
+        // 🔍 Обновление статистики
+        function updateStats() {
+            timeLeft--;
+            document.getElementById('timer').textContent = timeLeft;
+            
+            // Расчёт WPM: только ПРАВИЛЬНЫЕ символы
+            const minutes = (60 - timeLeft) / 60;
+            if (minutes > 0) {
+              // Считаем правильные символы
+              const correctChars = typedChars - errorCount;
+              // WPM только по правильным символам
+              const wpm = Math.round((correctChars / 5) / minutes);
+              const accuracy = Math.max(0, 100 - Math.round((errorCount / typedChars) * 100));
+              
+              document.getElementById('wpm').textContent = wpm;
+              document.getElementById('accuracy').textContent = accuracy;
+            }
+            
+            // Конец времени
+            if (timeLeft <= 0) {
+                finishTest();
+            }
+        }
+        
+        // 🔍 Завершение теста
+        async function finishTest() {
+            clearInterval(timer);
+            document.getElementById('user-input').disabled = true;
+            
+            // Считаем финальные метрики
+            const minutes = 1; // 60 секунд = 1 минута
+            // 🔥 Только ПРАВИЛЬНЫЕ символы идут в WPM
+            const correctChars = typedChars - errorCount;
+            const wpm = Math.round((correctChars / 5) / minutes);
+            const accuracy = Math.max(0, 100 - Math.round((errorCount / Math.max(1, typedChars)) * 100));
+            
+            // Отправляем результат на сервер
+            try {
+                await fetch(`${API_URL}/results`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        username: 'guest', // Позже добавим регистрацию
+                        wpm: wpm,
+                        accuracy: accuracy,
+                        errors: errorCount,
+                        text_id: texts[selectedText].id
+                    })
+                });
+            } catch (err) {
+                console.error('Failed to save result:', err);
+            }
+            
+            // Показываем результат
+            document.getElementById('test-screen').classList.add('hidden');
+            document.getElementById('result-screen').classList.remove('hidden');
+            document.getElementById('final-wpm').textContent = wpm;
+            document.getElementById('final-accuracy').textContent = accuracy;
+        }
+        
+        // 🔍 Показать таблицу лидеров
+        async function showLeaderboard() {
+            document.getElementById('result-screen').classList.add('hidden');
+            document.getElementById('leaderboard-screen').classList.remove('hidden');
+            
+            try {
+                const response = await fetch(`${API_URL}/leaderboard`);
+                const data = await response.json();
+                const tbody = document.getElementById('leaderboard-body');
+                
+                if (data.success) {
+                    tbody.innerHTML = data.data.map((item, index) => `
+                        <tr>
+                            <td>${index + 1}</td>
+                            <td>${item.username}</td>
+                            <td><strong>${item.wpm}</strong></td>
+                            <td>${item.accuracy}%</td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (err) {
+                tbody.innerHTML = '<tr><td colspan="4">Ошибка загрузки</td></tr>';
+            }
+        }
+        
+        // 🔍 Загружаем тексты при загрузке страницы
+        window.onload = loadTexts;
+    </script>
+</body>
+</html>
