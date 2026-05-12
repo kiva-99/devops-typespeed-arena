@@ -1,0 +1,11 @@
+yc_service_account_key_file = "C:/secure/yc/typespeed-terraform-sa-key.json"
+
+cloud_id  = "b1g7n8p29nt9r3i5e3m5"
+folder_id = "b1g04tcucevnnibrg2r7"
+
+zone = "ru-central1-a"
+
+# Replace with your public IP in CIDR format.
+# Example:
+# my_ip_cidr = "1.2.3.4/32"
+my_ip_cidr = "YOUR_PUBLIC_IP/32"
