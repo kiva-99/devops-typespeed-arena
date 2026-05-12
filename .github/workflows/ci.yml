@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - feature/**
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  backend-and-docker-checks:
+    name: Backend and Docker checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Check backend Python syntax
+        run: |
+          python -m compileall app/backend
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r app/backend/requirements.txt
+
+      - name: Build Docker Compose services
+        working-directory: deploy/local
+        run: |
+          docker compose build
+
+      - name: Start Docker Compose stack
+        working-directory: deploy/local
+        run: |
+          docker compose up -d
+
+      - name: Show Docker Compose status
+        working-directory: deploy/local
+        run: |
+          docker compose ps
+
+      - name: Wait for application healthcheck
+        run: |
+          for i in {1..30}; do
+            if curl -fsS http://localhost/health; then
+              echo "Application is healthy"
+              exit 0
+            fi
+            echo "Waiting for app..."
+            sleep 2
+          done
+          echo "Application did not become healthy in time"
+          docker compose -f deploy/local/docker-compose.yml logs
+          exit 1
+
+      - name: Check API texts endpoint
+        run: |
+          curl -fsS http://localhost/api/texts
+
+      - name: Stop Docker Compose stack
+        if: always()
+        working-directory: deploy/local
+        run: |
+          docker compose down -v
