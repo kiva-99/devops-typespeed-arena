@@ -30,6 +30,23 @@ jobs:
           yc config set cloud-id b1g7n8p29nt9r3i5e3m5
           yc config set folder-id b1g04tcucevnnibrg2r7
 
+      - name: Allow GitHub runner SSH access
+        run: |
+          RUNNER_IP="$(curl -fsS https://api.ipify.org)"
+          RULE_DESC="github-actions-cd-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
+          echo "Runner IP: ${RUNNER_IP}"
+          echo "GITHUB_SG_RULE_DESC=${RULE_DESC}" >> "$GITHUB_ENV"
+
+          yc vpc security-group update-rules \
+            --id "${{ secrets.APP_SECURITY_GROUP_ID }}" \
+            --add-rule "direction=ingress,protocol=tcp,port=22,v4-cidrs=${RUNNER_IP}/32,description=${RULE_DESC}"
+
+          RULE_ID="$(yc vpc security-group get --id "${{ secrets.APP_SECURITY_GROUP_ID }}" --format json | jq -r --arg desc "$RULE_DESC" '.rules[] | select(.description == $desc) | .id' | head -n 1)"
+
+          echo "Created SG rule: ${RULE_ID}"
+          echo "GITHUB_SG_RULE_ID=${RULE_ID}" >> "$GITHUB_ENV"
+
       - name: Configure Docker for Yandex Container Registry
         run: |
           yc container registry configure-docker
@@ -51,7 +68,7 @@ jobs:
           mkdir -p ~/.ssh
           echo '${{ secrets.APP_SSH_PRIVATE_KEY }}' > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H ${{ secrets.APP_HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -T 20 -H ${{ secrets.APP_HOST }} >> ~/.ssh/known_hosts
 
       - name: Deploy on app node
         run: |
@@ -66,3 +83,13 @@ jobs:
         run: |
           curl -fsS http://${{ secrets.APP_HOST }}/health
 
+      - name: Remove GitHub runner SSH access
+        if: always()
+        run: |
+          if [ -n "${GITHUB_SG_RULE_ID:-}" ]; then
+            yc vpc security-group update-rules \
+              --id "${{ secrets.APP_SECURITY_GROUP_ID }}" \
+              --delete-rule-id "${GITHUB_SG_RULE_ID}"
+          else
+            echo "No temporary SG rule id found, skipping cleanup"
+          fi
