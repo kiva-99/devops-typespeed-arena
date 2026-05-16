@@ -1,0 +1,7 @@
+---
+- name: Install and configure Docker on app node
+  hosts: app
+  become: true
+  gather_facts: true
+  roles:
+    - docker

@@ -1,0 +1,21 @@
+---
+- name: Configure common baseline on all nodes
+  hosts: all
+  become: true
+  gather_facts: true
+  roles:
+    - common
+
+- name: Configure database node
+  hosts: db
+  become: true
+  gather_facts: true
+  roles:
+    - postgres
+
+- name: Configure application node
+  hosts: app
+  become: true
+  gather_facts: true
+  roles:
+    - docker

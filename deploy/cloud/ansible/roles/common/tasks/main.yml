@@ -1,0 +1,40 @@
+---
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Install common packages
+  ansible.builtin.apt:
+    name:
+      - curl
+      - wget
+      - git
+      - ca-certificates
+      - gnupg
+      - lsb-release
+      - unzip
+      - htop
+      - net-tools
+      - jq
+      - python3
+      - python3-pip
+    state: present
+
+- name: Set timezone to Europe/Minsk
+  community.general.timezone:
+    name: Europe/Minsk
+
+- name: Ensure systemd-timesyncd is enabled
+  ansible.builtin.systemd:
+    name: systemd-timesyncd
+    enabled: true
+    state: started
+
+- name: Print node summary
+  ansible.builtin.debug:
+    msg:
+      - "Host: {{ inventory_hostname }}"
+      - "Private IP: {{ private_ip }}"
+      - "OS: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+      - "Kernel: {{ ansible_kernel }}"

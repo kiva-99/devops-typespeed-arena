@@ -1,0 +1,55 @@
+---
+- name: Install PostgreSQL
+  ansible.builtin.apt:
+    name:
+      - postgresql
+      - postgresql-contrib
+      - python3-psycopg2
+    state: present
+    update_cache: true
+
+- name: Ensure PostgreSQL is enabled and running
+  ansible.builtin.systemd:
+    name: postgresql
+    enabled: true
+    state: started
+
+- name: Allow PostgreSQL to listen on all interfaces
+  ansible.builtin.lineinfile:
+    path: /etc/postgresql/14/main/postgresql.conf
+    regexp: "^#?listen_addresses"
+    line: "listen_addresses = '*'"
+  notify: Restart PostgreSQL
+
+- name: Allow app-node to connect to PostgreSQL
+  ansible.builtin.lineinfile:
+    path: /etc/postgresql/14/main/pg_hba.conf
+    line: "host    all             all             10.10.10.35/32           scram-sha-256"
+    state: present
+  notify: Restart PostgreSQL
+
+- name: Create application database
+  ansible.builtin.shell: |
+    sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname = 'typespeed_db'" | grep -q 1 || \
+    sudo -u postgres createdb typespeed_db
+  args:
+    executable: /bin/bash
+  changed_when: false
+
+- name: Create application database user
+  ansible.builtin.shell: |
+    sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname = 'typespeed'" | grep -q 1 || \
+    sudo -u postgres psql -c "CREATE USER typespeed WITH PASSWORD 'devpassword123';"
+  args:
+    executable: /bin/bash
+  changed_when: false
+
+- name: Grant privileges on database
+  ansible.builtin.shell: |
+    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE typespeed_db TO typespeed;"
+  args:
+    executable: /bin/bash
+  changed_when: false
+
+- name: Flush handlers to restart PostgreSQL if config changed
+  ansible.builtin.meta: flush_handlers
