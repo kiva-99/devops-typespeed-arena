@@ -1,0 +1,8 @@
+---
+- name: Check connection to all TypeSpeed nodes
+  hosts: all
+  gather_facts: false
+
+  tasks:
+    - name: Ping hosts
+      ansible.builtin.ping:
