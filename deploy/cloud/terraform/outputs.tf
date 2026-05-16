@@ -51,3 +51,13 @@ output "backup_secret_key" {
   value     = yandex_iam_service_account_static_access_key.backup_sa_static_key.secret_key
   sensitive = true
 }
+
+output "registry_pull_access_key" {
+  value     = yandex_iam_service_account_static_access_key.registry_pull_static_key.access_key
+  sensitive = true
+}
+
+output "registry_pull_secret_key" {
+  value     = yandex_iam_service_account_static_access_key.registry_pull_static_key.secret_key
+  sensitive = true
+}

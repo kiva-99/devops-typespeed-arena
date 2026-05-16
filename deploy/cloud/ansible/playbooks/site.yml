@@ -20,3 +20,4 @@
   gather_facts: true
   roles:
     - docker
+    - app

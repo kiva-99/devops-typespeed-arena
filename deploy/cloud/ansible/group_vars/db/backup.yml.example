@@ -1,0 +1,14 @@
+backup_db_name: typespeed_db
+backup_db_user: typespeed
+backup_db_host: 127.0.0.1
+backup_db_port: 5432
+backup_local_dir: /var/backups/typespeed
+backup_bucket_name: typespeed-backups-CHANGE-ME
+
+backup_app_health_url: http://APP_PRIVATE_IP/health
+backup_require_app_health: "false"
+
+backup_retention_days: 7
+
+backup_s3_access_key: "CHANGE_ME"
+backup_s3_secret_key: "CHANGE_ME"

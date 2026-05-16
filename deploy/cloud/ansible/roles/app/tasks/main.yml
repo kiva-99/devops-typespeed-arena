@@ -1,0 +1,113 @@
+---
+- name: Create application directory
+  ansible.builtin.file:
+    path: "{{ app_dir }}"
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    mode: "0755"
+
+- name: Create frontend directory
+  ansible.builtin.file:
+    path: "{{ app_dir }}/frontend"
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    mode: "0755"
+
+- name: Upload frontend index.html
+  ansible.builtin.copy:
+    src: ../../../../../../app/frontend/index.html
+    dest: "{{ app_dir }}/frontend/index.html"
+    owner: ubuntu
+    group: ubuntu
+    mode: "0644"
+
+- name: Render nginx config
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: "{{ app_dir }}/nginx.conf"
+    owner: ubuntu
+    group: ubuntu
+    mode: "0644"
+
+- name: Render production docker-compose file
+  ansible.builtin.template:
+    src: docker-compose.prod.yml.j2
+    dest: "{{ app_dir }}/docker-compose.yml"
+    owner: ubuntu
+    group: ubuntu
+    mode: "0644"
+
+- name: Install yc CLI if missing
+  ansible.builtin.shell: |
+    if ! command -v yc >/dev/null 2>&1; then
+      curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash -s -- -i /opt/yandex-cloud -n
+      ln -sf /opt/yandex-cloud/bin/yc /usr/local/bin/yc
+    fi
+  args:
+    executable: /bin/bash
+
+- name: Ensure docker-credential-yc is available in PATH
+  ansible.builtin.file:
+    src: /opt/yandex-cloud/bin/docker-credential-yc
+    dest: /usr/local/bin/docker-credential-yc
+    state: link
+    force: true
+
+- name: Create Yandex key directory
+  ansible.builtin.file:
+    path: /etc/yandex
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Install registry pull authorized key
+  ansible.builtin.copy:
+    dest: /etc/yandex/typespeed-registry-pull-key.json
+    content: "{{ registry_pull_authorized_key_json }}"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+- name: Configure yc profile for registry pull
+  ansible.builtin.shell: |
+    yc config profile create typespeed-registry-pull || true
+    yc config set service-account-key /etc/yandex/typespeed-registry-pull-key.json
+    yc config set cloud-id {{ yc_cloud_id }}
+    yc config set folder-id {{ yc_folder_id }}
+  args:
+    executable: /bin/bash
+  no_log: true
+
+- name: Configure Docker credential helper for Yandex Container Registry
+  ansible.builtin.command:
+    cmd: yc container registry configure-docker
+  environment:
+    HOME: /root
+
+- name: Pull application images
+  ansible.builtin.command:
+    cmd: docker compose pull
+    chdir: "{{ app_dir }}"
+  changed_when: true
+
+- name: Start application stack
+  ansible.builtin.command:
+    cmd: docker compose up -d
+    chdir: "{{ app_dir }}"
+  changed_when: true
+
+- name: Check application health
+  ansible.builtin.uri:
+    url: "{{ app_health_url }}"
+    status_code: 200
+    return_content: true
+  register: app_health
+
+- name: Show health response
+  ansible.builtin.debug:
+    var: app_health.content
+

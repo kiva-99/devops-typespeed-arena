@@ -75,3 +75,9 @@ variable "vm_platform_id" {
   type        = string
   default     = "standard-v3"
 }
+
+variable "registry_pull_sa_name" {
+  description = "Service account name for pulling images from Container Registry"
+  type        = string
+  default     = "typespeed-registry-pull-sa"
+}

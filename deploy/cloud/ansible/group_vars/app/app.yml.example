@@ -1,0 +1,12 @@
+app_dir: /opt/typespeed-arena
+
+app_backend_image: cr.yandex/REGISTRY_ID/typespeed-backend:latest
+
+app_database_url: postgresql://typespeed:CHANGE_ME@DB_PRIVATE_IP:5432/typespeed_db
+
+app_health_url: http://127.0.0.1/health
+
+yc_cloud_id: CHANGE_ME
+yc_folder_id: CHANGE_ME
+
+registry_pull_authorized_key_json: 'CHANGE_ME'
