@@ -1,0 +1,63 @@
+---
+- name: Install backup dependencies
+  ansible.builtin.apt:
+    name:
+      - awscli
+      - gzip
+      - curl
+    state: present
+    update_cache: true
+
+- name: Create backup directory
+  ansible.builtin.file:
+    path: "{{ backup_local_dir }}"
+    state: directory
+    owner: postgres
+    group: postgres
+    mode: "0750"
+
+- name: Create AWS credentials directory for root
+  ansible.builtin.file:
+    path: /root/.aws
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Configure AWS credentials for Object Storage
+  ansible.builtin.copy:
+    dest: /root/.aws/credentials
+    owner: root
+    group: root
+    mode: "0600"
+    content: |
+      [default]
+      aws_access_key_id={{ backup_s3_access_key }}
+      aws_secret_access_key={{ backup_s3_secret_key }}
+
+- name: Configure AWS CLI region
+  ansible.builtin.copy:
+    dest: /root/.aws/config
+    owner: root
+    group: root
+    mode: "0600"
+    content: |
+      [default]
+      region=ru-central1
+      output=json
+
+- name: Install PostgreSQL backup script
+  ansible.builtin.template:
+    src: backup-postgres.sh.j2
+    dest: /opt/typespeed-backup-postgres.sh
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Create cron job for PostgreSQL backup
+  ansible.builtin.cron:
+    name: "TypeSpeed PostgreSQL backup"
+    user: root
+    minute: "0"
+    hour: "3"
+    job: "/opt/typespeed-backup-postgres.sh >> /var/log/typespeed-backup.log 2>&1"

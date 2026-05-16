@@ -46,3 +46,8 @@ output "db_node_public_ip" {
 output "db_node_private_ip" {
   value = yandex_compute_instance.db_node.network_interface[0].ip_address
 }
+
+output "backup_secret_key" {
+  value     = yandex_iam_service_account_static_access_key.backup_sa_static_key.secret_key
+  sensitive = true
+}

@@ -12,6 +12,7 @@
   gather_facts: true
   roles:
     - postgres
+    - backup
 
 - name: Configure application node
   hosts: app

@@ -53,3 +53,4 @@ yc-key.json
 *.key.json
 **/key.json
 **/*key*.json
+deploy/cloud/ansible/group_vars/db/backup.yml
