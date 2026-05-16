@@ -1,0 +1,72 @@
+name: CD
+
+on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+    branches:
+      - feature/jenkins-setup
+
+jobs:
+  deploy:
+    name: Build, push and deploy
+    runs-on: ubuntu-latest
+
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: feature/jenkins-setup
+
+      - name: Install Yandex Cloud CLI
+        run: |
+          curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash -s -- -i $HOME/yandex-cloud -n
+          echo "$HOME/yandex-cloud/bin" >> $GITHUB_PATH
+
+      - name: Configure Yandex Cloud credentials
+        run: |
+          echo '${{ secrets.YC_SERVICE_ACCOUNT_KEY_JSON }}' > yc-key.json
+          yc config profile create github-actions || true
+          yc config set service-account-key yc-key.json
+          yc config set cloud-id b1g7n8p29nt9r3i5e3m5
+          yc config set folder-id b1g04tcucevnnibrg2r7
+
+      - name: Configure Docker for Yandex Container Registry
+        run: |
+          yc container registry configure-docker
+
+      - name: Build backend image
+        run: |
+          docker build \
+            -t cr.yandex/${{ secrets.YC_REGISTRY_ID }}/typespeed-backend:${{ github.sha }} \
+            -t cr.yandex/${{ secrets.YC_REGISTRY_ID }}/typespeed-backend:latest \
+            app/backend
+
+      - name: Push backend image
+        run: |
+          docker push cr.yandex/${{ secrets.YC_REGISTRY_ID }}/typespeed-backend:${{ github.sha }}
+          docker push cr.yandex/${{ secrets.YC_REGISTRY_ID }}/typespeed-backend:latest
+
+      - name: Prepare SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo '${{ secrets.APP_SSH_PRIVATE_KEY }}' > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H ${{ secrets.APP_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy on app node
+        run: |
+          ssh -i ~/.ssh/id_ed25519 ${{ secrets.APP_USER }}@${{ secrets.APP_HOST }} '
+            cd /opt/typespeed-arena &&
+            docker compose pull &&
+            docker compose up -d &&
+            docker image prune -f
+          '
+
+      - name: Check production health
+        run: |
+          curl -fsS http://${{ secrets.APP_HOST }}/health
