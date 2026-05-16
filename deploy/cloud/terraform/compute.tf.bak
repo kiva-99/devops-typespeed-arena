@@ -30,38 +30,9 @@ resource "yandex_compute_instance" "app_node" {
     security_group_ids = [yandex_vpc_security_group.app_sg.id]
   }
 
-  service_account_id = yandex_iam_service_account.registry_pull_sa.id
-
   metadata = {
     ssh-keys = "ubuntu:${var.ssh_public_key}"
-
-    user-data = <<-EOF
-#cloud-config
-package_update: true
-
-packages:
-  - curl
-  - ca-certificates
-  - gnupg
-  - lsb-release
-
-runcmd:
-  - curl -fsSL https://get.docker.com | sh
-  - usermod -aG docker ubuntu
-  - curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash -s -- -i /opt/yandex-cloud -n
-  - ln -sf /opt/yandex-cloud/bin/yc /usr/local/bin/yc
-  - yc config profile create registry-pull || true
-  - yc config set cloud-id ${var.cloud_id}
-  - yc config set folder-id ${var.folder_id}
-  - yc container registry configure-docker
-  - mkdir -p /opt/typespeed-arena
-  - chown -R ubuntu:ubuntu /opt/typespeed-arena
-EOF
   }
-
-  depends_on = [
-    yandex_resourcemanager_folder_iam_member.registry_pull_images_puller
-  ]
 
   scheduling_policy {
     preemptible = true
