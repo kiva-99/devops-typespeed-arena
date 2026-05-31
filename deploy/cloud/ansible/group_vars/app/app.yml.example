@@ -10,3 +10,4 @@ yc_cloud_id: CHANGE_ME
 yc_folder_id: CHANGE_ME
 
 registry_pull_authorized_key_json: 'CHANGE_ME'
+app_log_dir: "/opt/typespeed-arena/logs"

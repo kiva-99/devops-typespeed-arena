@@ -1,0 +1,27 @@
+---
+- name: Ensure logrotate is installed
+  ansible.builtin.apt:
+    name: logrotate
+    state: present
+    update_cache: true
+
+- name: Create application log directory
+  ansible.builtin.file:
+    path: "{{ app_log_dir }}"
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    mode: "0755"
+
+- name: Install TypeSpeed backend logrotate config
+  ansible.builtin.template:
+    src: typespeed-backend-logrotate.j2
+    dest: /etc/logrotate.d/typespeed-backend
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Validate logrotate config
+  ansible.builtin.command:
+    cmd: logrotate -d /etc/logrotate.d/typespeed-backend
+  changed_when: false

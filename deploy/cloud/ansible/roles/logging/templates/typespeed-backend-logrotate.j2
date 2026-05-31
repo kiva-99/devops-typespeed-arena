@@ -1,0 +1,10 @@
+{{ app_log_dir }}/typespeed-backend.log {
+    daily
+    rotate 7
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+    create 0644 ubuntu ubuntu
+}

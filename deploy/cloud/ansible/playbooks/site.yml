@@ -20,4 +20,12 @@
   gather_facts: true
   roles:
     - docker
+    - logging
     - app
+
+- name: Configure monitoring node
+  hosts: monitoring
+  become: true
+  gather_facts: true
+  roles:
+    - monitoring
