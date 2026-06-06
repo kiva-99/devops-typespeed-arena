@@ -169,4 +169,10 @@ EOF
   scheduling_policy {
     preemptible = true
   }
+
+  lifecycle {
+    ignore_changes = [
+      boot_disk[0].initialize_params[0].image_id
+    ]
+  }
 }

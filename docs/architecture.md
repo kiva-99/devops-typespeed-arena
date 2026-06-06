@@ -1,304 +1,321 @@
-# TypeSpeed Arena — архитектура дипломного проекта
+TypeSpeed Arena - Architecture Overview
 
-## 1. Цель проекта
+1. ЦЕЛЬ ПРОЕКТА
 
-TypeSpeed Arena — это веб-приложение для тренировки скорости печати.
+TypeSpeed Arena — дипломный DevOps-проект.
 
-Само приложение намеренно сделано достаточно простым. Основной фокус дипломного проекта — не сложная бизнес-логика, а демонстрация DevOps-практик:
+Цель:
+- автоматизированное развертывание приложения в облаке;
+- управление инфраструктурой через Terraform;
+- настройка серверов через Ansible;
+- CI/CD через GitHub Actions;
+- мониторинг и логирование;
+- резервное копирование данных;
+- безопасная и воспроизводимая инфраструктура.
 
-- Git и ветвление;
-- GitHub Actions;
-- Docker;
-- Docker Compose;
-- Infrastructure as Code;
-- Yandex Cloud;
-- Terraform;
-- Ansible;
-- Kubernetes / k3s;
-- резервное копирование;
-- мониторинг;
-- логирование;
-- домен и HTTPS.
+--------------------------------------------------
 
----
+2. ТЕКУЩЕЕ СОСТОЯНИЕ
 
-## 2. Принятое архитектурное решение
+Развернуто 3 виртуальные машины в Yandex Cloud:
 
-Для диплома выбран путь дешёвой, но достаточно взрослой архитектуры на двух виртуальных машинах.
+1. app-node
+2. db-node
+3. monitoring-node
 
-Мы не используем fully managed-подход на первом этапе, потому что Managed Kubernetes и Managed PostgreSQL могут заметно увеличить стоимость проекта.
+Также используются:
 
-Вместо этого мы показываем больше самостоятельной DevOps-работы:
+- VPC
+- Subnet
+- Security Groups
+- Container Registry
+- Object Storage
 
-- сами создаём инфраструктуру через Terraform;
-- сами настраиваем серверы через Ansible;
-- сами поднимаем k3s;
-- сами настраиваем PostgreSQL;
-- сами настраиваем бэкапы;
-- сами строим CI/CD.
+--------------------------------------------------
 
----
+3. APP NODE
 
-## 3. Целевая схема
+Назначение:
 
-```text
-Пользователь
+- frontend
+- backend
+- прием пользовательского трафика
+- выполнение деплоя
+
+Текущее состояние:
+
+- nginx frontend
+- backend container
+- Docker Compose
+- образы берутся из Yandex Container Registry
+
+Сейчас приложение работает именно через Docker Compose.
+
+--------------------------------------------------
+
+4. DB NODE
+
+Назначение:
+
+- PostgreSQL
+- хранение данных приложения
+
+Реализовано:
+
+- PostgreSQL установлен через Ansible
+- отдельная VM
+- доступ по внутреннему IP
+- резервное копирование в Object Storage
+
+--------------------------------------------------
+
+5. MONITORING NODE
+
+Назначение:
+
+- мониторинг
+- визуализация
+- алертинг
+
+Развернуто:
+
+- Prometheus
+- Grafana
+- Alertmanager
+- Blackbox Exporter
+- Node Exporter
+
+Мониторятся:
+
+- app-node
+- db-node
+- monitoring-node
+- HTTP endpoint приложения
+
+--------------------------------------------------
+
+6. CI/CD
+
+CI:
+
+GitHub Actions выполняет:
+
+- checkout
+- python compile check
+- dependency install
+- docker compose build
+- запуск приложения
+- health check
+- smoke tests
+
+CD:
+
+GitHub Actions выполняет:
+
+- сборку Docker image
+- push в Container Registry
+- подключение к app-node
+- docker compose pull
+- docker compose up -d
+- health check
+
+--------------------------------------------------
+
+7. TERRAFORM
+
+Terraform создает:
+
+- сеть
+- подсеть
+- security groups
+- container registry
+- object storage
+- service accounts
+- app-node
+- db-node
+- monitoring-node
+
+Проблема:
+
+Состояние Terraform пока локальное.
+
+Необходимо:
+
+- вынести state в Object Storage
+- настроить remote backend
+
+--------------------------------------------------
+
+8. ANSIBLE
+
+Используемые роли:
+
+common
+docker
+postgres
+backup
+app
+logging
+monitoring
+node_exporter
+
+Ansible отвечает за настройку всей инфраструктуры после создания Terraform.
+
+--------------------------------------------------
+
+9. РЕЗЕРВНОЕ КОПИРОВАНИЕ
+
+Реализовано:
+
+- pg_dump
+- gzip
+- загрузка в Object Storage
+- cron запуск
+
+Требуется:
+
+- контроль восстановления
+- периодическая проверка backup
+
+--------------------------------------------------
+
+10. МОНИТОРИНГ
+
+Реализовано:
+
+- Prometheus
+- Grafana
+- Alertmanager
+- Node Exporter
+- Blackbox Exporter
+
+Требуется:
+
+- alert rules
+- уведомления
+- расширение dashboard
+
+--------------------------------------------------
+
+11. ЛОГИРОВАНИЕ
+
+Сейчас:
+
+- backend пишет логи
+- настроен logrotate
+
+Целевая схема:
+
+- Loki
+- Promtail или Grafana Alloy
+- Grafana для просмотра логов
+
+ELK использовать в дипломе не планируется из-за ресурсов.
+
+--------------------------------------------------
+
+12. БЕЗОПАСНОСТЬ
+
+Уже реализовано:
+
+- Security Groups
+- ограничение SSH
+- отдельная DB VM
+- GitHub открывает SSH только на время деплоя
+
+Необходимо:
+
+- убрать публичный IP с db-node
+- перейти на OIDC вместо постоянного ключа YC
+- использовать Vault/Secrets
+- настроить HTTPS
+
+--------------------------------------------------
+
+13. KUBERNETES
+
+Сейчас:
+
+Docker Compose
+
+Планируется:
+
+k3s на app-node
+
+Будет использоваться:
+
+- Deployment
+- Service
+- Ingress
+- ConfigMap
+- Secret
+- Liveness Probe
+- Readiness Probe
+
+Причина:
+
+- автоматические rollout
+- rollback
+- управление версиями
+- более правильная production архитектура
+
+--------------------------------------------------
+
+14. КРИТИЧЕСКИЕ НЕЗАКРЫТЫЕ ЗАДАЧИ
+
+1. Remote Terraform State
+2. k3s
+3. Deploy по git SHA
+4. Rollback
+5. Blue/Green или Rolling Update
+6. Loki
+7. Secrets Management
+8. Закрытие db-node от интернета
+9. HTTPS
+10. Домен
+
+--------------------------------------------------
+
+15. ЦЕЛЕВАЯ АРХИТЕКТУРА
+
+Developer
     |
-    v
-typespeedarena.ru
+GitHub
     |
-    v
-app-node VM
+GitHub Actions
     |
-    +-- k3s
-    +-- Ingress Nginx
+Container Registry
+    |
+app-node (k3s)
+    |
     +-- frontend
     +-- backend
-    |
-    v
-db-node VM
+
+db-node
     |
     +-- PostgreSQL
-    +-- backup scripts
-    +-- cron
+    +-- backups
+
+monitoring-node
     |
-    v
-Yandex Object Storage
-    |
-    +-- database backups
-4. Виртуальная машина app-node
+    +-- Prometheus
+    +-- Grafana
+    +-- Alertmanager
+    +-- Loki
 
-Назначение:
+--------------------------------------------------
 
-запуск лёгкого Kubernetes-кластера k3s;
-запуск frontend;
-запуск backend;
-приём входящего HTTP/HTTPS-трафика;
-работа Ingress-контроллера;
-публикация приложения наружу через домен.
+16. БЛИЖАЙШИЙ ПЛАН
 
-Планируемая конфигурация:
+1. Запустить VM.
+2. Проверить инфраструктуру.
+3. Настроить remote Terraform state.
+4. Подготовить k3s.
+5. Перенести приложение в Kubernetes.
+6. Переделать CD на git SHA.
+7. Реализовать rollback.
+8. Добавить Loki.
+9. Закрыть db-node от интернета.
+10. Настроить HTTPS и домен.
 
-2 vCPU
-2 GB RAM
-20 GB disk
-preemptible = true
-Ubuntu 22.04
-
-Почему app-node может быть preemptible:
-
-приложение в основном stateless;
-frontend/backend можно пересоздать;
-код хранится в GitHub;
-Docker-образы будут храниться в Container Registry;
-инфраструктура описана в Terraform;
-настройка сервера будет автоматизирована через Ansible.
-5. Виртуальная машина db-node
-
-Назначение:
-
-запуск PostgreSQL;
-хранение результатов тестов;
-хранение текстов для печати;
-выполнение резервного копирования;
-загрузка бэкапов в Object Storage.
-
-Планируемая конфигурация:
-
-2 vCPU
-2 GB RAM
-20-30 GB disk
-отдельный data disk — желательно
-preemptible = false — желательно
-Ubuntu 22.04
-
-Почему БД вынесена отдельно:
-
-база данных является stateful-компонентом;
-данные важнее, чем контейнеры приложения;
-приложение и БД не мешают друг другу по ресурсам;
-проще объяснить разделение stateless/stateful;
-проще настроить отдельную стратегию бэкапов.
-6. Почему не одна ВМ
-
-Одна ВМ дешевле и проще, но для диплома хуже:
-
-приложение и база данных смешаны;
-хуже демонстрируется архитектурное мышление;
-сложнее показать разделение ответственности;
-сбой одной машины ломает сразу всё;
-сложнее объяснить backup strategy.
-
-Поэтому выбран компромисс: две минимальные ВМ.
-
-7. Почему не полностью managed-сервисы
-
-Managed Kubernetes и Managed PostgreSQL дают меньше ручной работы и лучше подходят для production.
-
-Но для диплома у них есть минусы:
-
-выше стоимость;
-меньше демонстрации самостоятельной настройки;
-меньше практики администрирования;
-сложнее уложиться в бюджет.
-
-Поэтому на первом этапе используем:
-
-self-hosted k3s
-self-hosted PostgreSQL
-Object Storage для бэкапов
-Container Registry для Docker-образов
-Cloud DNS / домен для внешнего доступа
-8. Git workflow
-
-В проекте используются ветки:
-
-main      — production/stable
-develop   — dev/staging
-feature/* — рабочие ветки под задачи
-
-Текущая рабочая ветка:
-
-feature/jenkins-setup
-
-Логика движения изменений:
-
-feature/* -> develop -> main
-9. CI/CD
-
-Сейчас уже настроен GitHub Actions CI.
-
-Он проверяет:
-
-синтаксис Python-кода;
-установку backend-зависимостей;
-сборку Docker-образа backend;
-запуск Docker Compose;
-доступность /health;
-доступность /api/texts;
-корректную остановку контейнеров.
-
-Целевое состояние CI/CD:
-
-push в feature/*
-    -> CI проверки
-
-merge/push в develop
-    -> CI
-    -> build Docker image
-    -> push image в Yandex Container Registry
-    -> deploy в dev/staging
-
-merge/push в main
-    -> CI
-    -> build Docker image
-    -> push image в Yandex Container Registry
-    -> deploy в production
-10. Terraform
-
-Terraform будет управлять облачной инфраструктурой в Yandex Cloud.
-
-Планируемые ресурсы:
-
-сеть VPC;
-подсеть;
-security groups;
-app-node VM;
-db-node VM;
-Container Registry;
-Object Storage bucket для бэкапов;
-сервисные аккаунты;
-IAM-роли;
-outputs для Ansible и CI/CD.
-11. Ansible
-
-Ansible будет настраивать созданные виртуальные машины.
-
-app-node:
-
-установка базовых пакетов;
-установка k3s;
-настройка kubectl;
-установка Ingress Nginx;
-подготовка окружения для деплоя приложения.
-
-db-node:
-
-установка PostgreSQL;
-создание базы данных;
-создание пользователя;
-настройка доступа только с app-node;
-настройка backup script;
-настройка cron;
-загрузка бэкапов в Object Storage.
-12. Kubernetes / k3s
-
-В Kubernetes будут описаны:
-
-namespace;
-backend Deployment;
-frontend Deployment;
-Services;
-Ingress;
-ConfigMap;
-Secrets;
-livenessProbe;
-readinessProbe.
-13. Backup strategy
-
-Бэкапы PostgreSQL будут храниться вне db-node.
-
-План:
-
-pg_dump
-    -> сжатый backup-файл
-    -> загрузка в Yandex Object Storage
-    -> хранение нескольких последних копий
-
-Это нужно, чтобы восстановить данные даже при потере db-node.
-
-14. Мониторинг и логирование
-
-Планируемый мониторинг:
-
-Prometheus;
-Grafana;
-node-exporter;
-PostgreSQL exporter.
-
-Минимальное логирование:
-
-docker logs;
-kubectl logs.
-
-Расширенное логирование:
-
-Loki;
-Promtail;
-Grafana.
-15. Текущий статус
-
-Уже сделано:
-
-Flask backend;
-HTML/JS frontend;
-Nginx reverse proxy;
-Docker Compose для локального запуска;
-PostgreSQL контейнер локально;
-backend Dockerfile;
-.dockerignore;
-внешний файл texts.json;
-healthcheck /health;
-API /api/texts;
-GitHub Actions CI;
-отдельный каталог Yandex Cloud для диплома.
-
-Следующие шаги:
-
-создать Terraform-структуру;
-описать provider;
-описать переменные;
-создать Container Registry;
-создать сеть;
-создать подсеть;
-создать security groups.
+После этого диплом можно будет считать практически завершённым.

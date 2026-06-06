@@ -60,3 +60,4 @@ deploy/cloud/ansible/group_vars/db/backup.yml
 # =========================
 deploy/cloud/ansible/group_vars/**/*.yml
 !deploy/cloud/ansible/group_vars/**/*.yml.example
+tfstate-access-key.json
