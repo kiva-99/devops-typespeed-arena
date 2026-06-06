@@ -35,10 +35,10 @@ scrape_configs:
       module: [http_2xx]
     static_configs:
       - targets:
-          - "http://51.250.84.81"
-          - "http://51.250.84.81/health"
-          - "http://51.250.84.81/api/texts"
-          - "http://51.250.84.81/api/leaderboard"
+          - "http://111.88.255.27"
+          - "http://111.88.255.27/health"
+          - "http://111.88.255.27/api/texts"
+          - "http://111.88.255.27/api/leaderboard"
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target
