@@ -1,7 +1,9 @@
 services:
   backend:
-    image: "{{ app_backend_image }}"
+    image: "${BACKEND_IMAGE}"
     container_name: typespeed-backend
+    env_file:
+      - backend-image.env
     environment:
       DATABASE_URL: "{{ app_database_url }}"
       PORT: "5000"

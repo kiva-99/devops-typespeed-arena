@@ -78,11 +78,15 @@ jobs:
             APP_DIR="/opt/typespeed-arena"
             REGISTRY="cr.yandex/${{ secrets.YC_REGISTRY_ID }}"
             NEW_IMAGE="${REGISTRY}/typespeed-backend:${{ github.sha }}"
-            OVERRIDE_FILE="/tmp/typespeed-backend-override.yml"
+            IMAGE_ENV_FILE="${APP_DIR}/backend-image.env"
 
             cd "$APP_DIR"
 
-            CURRENT_IMAGE="$(docker inspect --format={{.Config.Image}} typespeed-backend 2>/dev/null || true)"
+            if [ -f "$IMAGE_ENV_FILE" ]; then
+              CURRENT_IMAGE="$(grep "^BACKEND_IMAGE=" "$IMAGE_ENV_FILE" | cut -d= -f2-)"
+            else
+              CURRENT_IMAGE="$(docker inspect --format={{.Config.Image}} typespeed-backend 2>/dev/null || true)"
+            fi
 
             if [ -z "$CURRENT_IMAGE" ]; then
               CURRENT_IMAGE="${REGISTRY}/typespeed-backend:latest"
@@ -91,13 +95,13 @@ jobs:
             echo "[deploy] Previous image: ${CURRENT_IMAGE}"
             echo "[deploy] New image: ${NEW_IMAGE}"
 
-            printf "services:\n  backend:\n    image: \"%s\"\n" "$NEW_IMAGE" > "$OVERRIDE_FILE"
+            printf "BACKEND_IMAGE=%s\n" "$NEW_IMAGE" > "$IMAGE_ENV_FILE"
 
             echo "[deploy] Pulling new image..."
-            docker compose -f docker-compose.yml -f "$OVERRIDE_FILE" pull backend
+            docker compose --env-file backend-image.env pull backend
 
             echo "[deploy] Starting backend with new image..."
-            docker compose -f docker-compose.yml -f "$OVERRIDE_FILE" up -d backend
+            docker compose --env-file backend-image.env up -d backend
 
             echo "[deploy] Waiting for backend health..."
             HEALTH_OK="false"
@@ -117,25 +121,23 @@ jobs:
               echo "[rollback] New backend image failed healthcheck"
               echo "[rollback] Rolling back to previous image: ${CURRENT_IMAGE}"
 
-              printf "services:\n  backend:\n    image: \"%s\"\n" "$CURRENT_IMAGE" > "$OVERRIDE_FILE"
+              printf "BACKEND_IMAGE=%s\n" "$CURRENT_IMAGE" > "$IMAGE_ENV_FILE"
 
-              docker compose -f docker-compose.yml -f "$OVERRIDE_FILE" up -d backend
+              docker compose --env-file backend-image.env pull backend || true
+              docker compose --env-file backend-image.env up -d backend
 
               echo "[rollback] Checking previous backend health"
               curl -fsS http://localhost:5001/health
 
-              rm -f "$OVERRIDE_FILE"
               exit 1
             fi
 
             echo "[deploy] Backend healthcheck passed"
-            echo "[deploy] Ensuring frontend is running"
-            docker compose up -d frontend
+            echo "[deploy] Ensuring full stack is running"
+            docker compose --env-file backend-image.env up -d
 
             echo "[deploy] Cleaning dangling images"
             docker image prune -f
-
-            rm -f "$OVERRIDE_FILE"
           '
 
       - name: Check production health

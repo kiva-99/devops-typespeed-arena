@@ -39,6 +39,21 @@
     group: ubuntu
     mode: "0644"
 
+- name: Check backend image env file
+  ansible.builtin.stat:
+    path: "{{ app_dir }}/backend-image.env"
+  register: backend_image_env_file
+
+- name: Create backend image env file with default image
+  ansible.builtin.copy:
+    dest: "{{ app_dir }}/backend-image.env"
+    content: |
+      BACKEND_IMAGE={{ app_backend_image }}
+    owner: ubuntu
+    group: ubuntu
+    mode: "0644"
+  when: not backend_image_env_file.stat.exists
+
 - name: Install yc CLI if missing
   ansible.builtin.shell: |
     if ! command -v yc >/dev/null 2>&1; then
@@ -90,13 +105,13 @@
 
 - name: Pull application images
   ansible.builtin.command:
-    cmd: docker compose pull
+    cmd: docker compose --env-file backend-image.env pull
     chdir: "{{ app_dir }}"
   changed_when: true
 
 - name: Start application stack
   ansible.builtin.command:
-    cmd: docker compose up -d
+    cmd: docker compose --env-file backend-image.env up -d
     chdir: "{{ app_dir }}"
   changed_when: true
 
@@ -110,4 +125,3 @@
 - name: Show health response
   ansible.builtin.debug:
     var: app_health.content
-
