@@ -39,6 +39,14 @@
     group: ubuntu
     mode: "0644"
 
+- name: Render Promtail config
+  ansible.builtin.template:
+    src: promtail-config.yml.j2
+    dest: "{{ app_dir }}/promtail-config.yml"
+    owner: ubuntu
+    group: ubuntu
+    mode: "0644"
+
 - name: Check backend image env file
   ansible.builtin.stat:
     path: "{{ app_dir }}/backend-image.env"

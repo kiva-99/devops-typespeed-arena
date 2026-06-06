@@ -42,3 +42,15 @@ services:
       - /var/lib/docker:/var/lib/docker:ro
       - /dev/disk:/dev/disk:ro
     restart: unless-stopped
+
+  promtail:
+    image: grafana/promtail:latest
+    container_name: typespeed-promtail
+    command:
+      - "-config.file=/etc/promtail/config.yml"
+    volumes:
+      - ./promtail-config.yml:/etc/promtail/config.yml:ro
+      - ./logs:/var/log/typespeed:ro
+    depends_on:
+      - backend
+    restart: unless-stopped

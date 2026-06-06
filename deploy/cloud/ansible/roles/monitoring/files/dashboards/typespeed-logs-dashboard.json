@@ -1,0 +1,154 @@
+{
+  "uid": "typespeed-app-logs",
+  "title": "TypeSpeed Application Logs (Логирование приложения)",
+  "tags": ["typespeed", "logs", "loki"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Requests per Minute (Запросы в минуту)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time({job=\"typespeed-backend\"} | json | event=\"http_request\" [1m]))",
+          "queryType": "range"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Errors Last Hour (Ошибки за последний час)",
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 0 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time({job=\"typespeed-backend\"} | json | level=\"ERROR\" [1h]))",
+          "queryType": "range"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 3,
+      "type": "piechart",
+      "title": "Top API Endpoints (Популярность API-методов)",
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 0 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (path) (count_over_time({job=\"typespeed-backend\"} | json | event=\"http_request\" [1h]))",
+          "queryType": "range",
+          "legendFormat": "{{path}}"
+        }
+      ],
+      "options": {
+        "displayLabels": ["name", "percent"],
+        "legend": {
+          "displayMode": "list",
+          "placement": "right"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": "logs",
+      "title": "Last Application Errors (Последние ошибки приложения)",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{job=\"typespeed-backend\"} | json | level=\"ERROR\"",
+          "queryType": "range"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending"
+      }
+    },
+    {
+      "id": 5,
+      "type": "logs",
+      "title": "Last HTTP Requests (Последние HTTP-запросы)",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{job=\"typespeed-backend\"} | json | event=\"http_request\"",
+          "queryType": "range"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending"
+      }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "User Requests without Health Checks (Пользовательские запросы без health-check)",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 17 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time({job=\"typespeed-backend\"} | json | event=\"http_request\" | path!=\"/health\" [1m]))",
+          "queryType": "range"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    }
+  ]
+}

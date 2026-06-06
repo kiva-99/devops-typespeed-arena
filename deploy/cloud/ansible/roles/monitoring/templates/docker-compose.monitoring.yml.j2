@@ -32,6 +32,22 @@ services:
 
     depends_on:
       - prometheus
+      - loki
+
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:latest
+    container_name: typespeed-loki
+
+    ports:
+      - "3100:3100"
+
+    command:
+      - "-config.file=/etc/loki/local-config.yaml"
+
+    volumes:
+      - loki_data:/loki
 
     restart: unless-stopped
 
@@ -80,3 +96,4 @@ volumes:
   prometheus_data:
   grafana_data:
   alertmanager_data:
+  loki_data:

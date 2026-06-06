@@ -123,9 +123,19 @@ resource "yandex_vpc_security_group" "monitoring_sg" {
     v4_cidr_blocks = [var.my_ip_cidr]
   }
 
+  ingress {
+    protocol          = "TCP"
+    description       = "Loki push from app security group"
+    port              = 3100
+    v4_cidr_blocks    = ["10.10.10.35/32"]
+  }
+
   egress {
     protocol       = "ANY"
     description    = "Allow all outbound traffic"
     v4_cidr_blocks = ["0.0.0.0/0"]
   }
 }
+
+
+
