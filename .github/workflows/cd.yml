@@ -72,7 +72,7 @@ jobs:
 
       - name: Deploy backend with rollback
         run: |
-          ssh -i ~/.ssh/id_ed25519 ${{ secrets.APP_USER }}@${{ secrets.APP_HOST }} 'bash -s' <<'REMOTE_SCRIPT'
+          ssh -i ~/.ssh/id_ed25519 ${{ secrets.APP_USER }}@${{ secrets.APP_HOST }} '
             set -e
 
             APP_DIR="/opt/typespeed-arena"
@@ -82,7 +82,7 @@ jobs:
 
             cd "$APP_DIR"
 
-            CURRENT_IMAGE="$(docker inspect --format '{{.Config.Image}}' typespeed-backend 2>/dev/null || true)"
+            CURRENT_IMAGE="$(docker inspect --format={{.Config.Image}} typespeed-backend 2>/dev/null || true)"
 
             if [ -z "$CURRENT_IMAGE" ]; then
               CURRENT_IMAGE="${REGISTRY}/typespeed-backend:latest"
@@ -91,7 +91,7 @@ jobs:
             echo "[deploy] Previous image: ${CURRENT_IMAGE}"
             echo "[deploy] New image: ${NEW_IMAGE}"
 
-            printf 'services:\n  backend:\n    image: "%s"\n' "$NEW_IMAGE" > "$OVERRIDE_FILE"
+            printf "services:\n  backend:\n    image: \"%s\"\n" "$NEW_IMAGE" > "$OVERRIDE_FILE"
 
             echo "[deploy] Pulling new image..."
             docker compose -f docker-compose.yml -f "$OVERRIDE_FILE" pull backend
@@ -117,7 +117,7 @@ jobs:
               echo "[rollback] New backend image failed healthcheck"
               echo "[rollback] Rolling back to previous image: ${CURRENT_IMAGE}"
 
-              printf 'services:\n  backend:\n    image: "%s"\n' "$CURRENT_IMAGE" > "$OVERRIDE_FILE"
+              printf "services:\n  backend:\n    image: \"%s\"\n" "$CURRENT_IMAGE" > "$OVERRIDE_FILE"
 
               docker compose -f docker-compose.yml -f "$OVERRIDE_FILE" up -d backend
 
@@ -136,7 +136,7 @@ jobs:
             docker image prune -f
 
             rm -f "$OVERRIDE_FILE"
-REMOTE_SCRIPT
+          '
 
       - name: Check production health
         run: |
