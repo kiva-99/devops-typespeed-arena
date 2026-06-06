@@ -228,7 +228,7 @@ def health():
     database_status = check_database()
 
     return jsonify({
-        "status": "healthy",
+        "status": "broken-rollback-test",
         "service": "typespeed-backend",
         "database": database_status,
         "texts_loaded": len(texts),
@@ -420,3 +420,4 @@ if __name__ == "__main__":
     )
 
     app.run(host="0.0.0.0", port=port, debug=debug)
+
