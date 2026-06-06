@@ -1,4 +1,3 @@
-# app/backend/main.py
 """
 TypeSpeed Arena Backend
 Flask API server for typing speed trainer.
@@ -12,6 +11,8 @@ import datetime
 import logging
 import sys
 import uuid
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
 app = Flask(__name__)
 CORS(app)
@@ -22,7 +23,8 @@ LOG_DIR = os.getenv("LOG_DIR", os.path.join(BASE_DIR, "logs"))
 LOG_FILE = os.getenv("LOG_FILE", os.path.join(LOG_DIR, "typespeed-backend.log"))
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 
-results = []
+DATABASE_URL = os.getenv("DATABASE_URL")
+results_memory_fallback = []
 
 
 class JsonFormatter(logging.Formatter):
@@ -37,26 +39,20 @@ class JsonFormatter(logging.Formatter):
             "message": record.getMessage(),
         }
 
-        if hasattr(record, "event"):
-            log_record["event"] = record.event
-        if hasattr(record, "request_id"):
-            log_record["request_id"] = record.request_id
-        if hasattr(record, "method"):
-            log_record["method"] = record.method
-        if hasattr(record, "path"):
-            log_record["path"] = record.path
-        if hasattr(record, "status_code"):
-            log_record["status_code"] = record.status_code
-        if hasattr(record, "username"):
-            log_record["username"] = record.username
-        if hasattr(record, "wpm"):
-            log_record["wpm"] = record.wpm
-        if hasattr(record, "accuracy"):
-            log_record["accuracy"] = record.accuracy
-        if hasattr(record, "text_id"):
-            log_record["text_id"] = record.text_id
-        if hasattr(record, "error"):
-            log_record["error"] = record.error
+        for field in [
+            "event",
+            "request_id",
+            "method",
+            "path",
+            "status_code",
+            "username",
+            "wpm",
+            "accuracy",
+            "text_id",
+            "error",
+        ]:
+            if hasattr(record, field):
+                log_record[field] = getattr(record, field)
 
         return json.dumps(log_record, ensure_ascii=False)
 
@@ -86,6 +82,80 @@ logger = setup_logging()
 
 def log_event(level, message, **extra):
     logger.log(level, message, extra=extra)
+
+
+def get_db_connection():
+    if not DATABASE_URL:
+        return None
+
+    return psycopg2.connect(DATABASE_URL)
+
+
+def is_database_enabled():
+    return bool(DATABASE_URL)
+
+
+def init_db():
+    if not is_database_enabled():
+        log_event(
+            logging.WARNING,
+            "DATABASE_URL is not set, using in-memory fallback",
+            event="database_disabled",
+        )
+        return
+
+    create_results_table_sql = """
+    CREATE TABLE IF NOT EXISTS results (
+        id SERIAL PRIMARY KEY,
+        username VARCHAR(100) NOT NULL,
+        wpm INTEGER NOT NULL,
+        accuracy NUMERIC(5,2) NOT NULL,
+        errors INTEGER NOT NULL DEFAULT 0,
+        text_id VARCHAR(100),
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    """
+
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(create_results_table_sql)
+            conn.commit()
+
+        log_event(
+            logging.INFO,
+            "Database initialized successfully",
+            event="database_initialized",
+        )
+
+    except Exception as error:
+        log_event(
+            logging.ERROR,
+            "Database initialization failed",
+            event="database_initialization_failed",
+            error=str(error),
+        )
+
+
+def check_database():
+    if not is_database_enabled():
+        return "disabled"
+
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT 1;")
+                cursor.fetchone()
+        return "connected"
+
+    except Exception as error:
+        log_event(
+            logging.ERROR,
+            "Database healthcheck failed",
+            event="database_healthcheck_failed",
+            error=str(error),
+        )
+        return "error"
 
 
 def load_texts():
@@ -122,6 +192,7 @@ def load_texts():
 
 
 texts = load_texts()
+init_db()
 
 
 @app.before_request
@@ -154,9 +225,12 @@ def hello():
 
 @app.route("/health", methods=["GET"])
 def health():
+    database_status = check_database()
+
     return jsonify({
         "status": "healthy",
         "service": "typespeed-backend",
+        "database": database_status,
         "texts_loaded": len(texts),
         "timestamp": datetime.datetime.now().isoformat()
     })
@@ -195,17 +269,65 @@ def save_result():
             "error": "Missing required fields: wpm, accuracy"
         }), 400
 
-    result = {
-        "id": len(results) + 1,
-        "username": data.get("username", "guest"),
-        "wpm": data["wpm"],
-        "accuracy": data["accuracy"],
-        "errors": data.get("errors", 0),
-        "text_id": data.get("text_id"),
-        "timestamp": datetime.datetime.now().isoformat()
-    }
+    username = data.get("username", "guest")
+    wpm = int(data["wpm"])
+    accuracy = float(data["accuracy"])
+    errors = int(data.get("errors", 0))
+    text_id = data.get("text_id")
 
-    results.append(result)
+    if is_database_enabled():
+        try:
+            insert_sql = """
+            INSERT INTO results (username, wpm, accuracy, errors, text_id)
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING id, username, wpm, accuracy, errors, text_id, created_at;
+            """
+
+            with get_db_connection() as conn:
+                with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                    cursor.execute(insert_sql, (username, wpm, accuracy, errors, text_id))
+                    saved_result = cursor.fetchone()
+                conn.commit()
+
+            result = {
+                "id": saved_result["id"],
+                "username": saved_result["username"],
+                "wpm": saved_result["wpm"],
+                "accuracy": float(saved_result["accuracy"]),
+                "errors": saved_result["errors"],
+                "text_id": saved_result["text_id"],
+                "timestamp": saved_result["created_at"].isoformat(),
+            }
+
+        except Exception as error:
+            log_event(
+                logging.ERROR,
+                "Failed to save result to database",
+                event="result_save_failed",
+                request_id=getattr(request, "request_id", None),
+                username=username,
+                wpm=wpm,
+                accuracy=accuracy,
+                text_id=text_id,
+                error=str(error),
+            )
+
+            return jsonify({
+                "success": False,
+                "error": "Failed to save result"
+            }), 500
+
+    else:
+        result = {
+            "id": len(results_memory_fallback) + 1,
+            "username": username,
+            "wpm": wpm,
+            "accuracy": accuracy,
+            "errors": errors,
+            "text_id": text_id,
+            "timestamp": datetime.datetime.now().isoformat()
+        }
+        results_memory_fallback.append(result)
 
     log_event(
         logging.INFO,
@@ -227,7 +349,52 @@ def save_result():
 
 @app.route("/api/leaderboard", methods=["GET"])
 def get_leaderboard():
-    top_results = sorted(results, key=lambda x: x["wpm"], reverse=True)[:10]
+    if is_database_enabled():
+        try:
+            select_sql = """
+            SELECT id, username, wpm, accuracy, errors, text_id, created_at
+            FROM results
+            ORDER BY wpm DESC, accuracy DESC, created_at ASC
+            LIMIT 10;
+            """
+
+            with get_db_connection() as conn:
+                with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                    cursor.execute(select_sql)
+                    rows = cursor.fetchall()
+
+            top_results = [
+                {
+                    "id": row["id"],
+                    "username": row["username"],
+                    "wpm": row["wpm"],
+                    "accuracy": float(row["accuracy"]),
+                    "errors": row["errors"],
+                    "text_id": row["text_id"],
+                    "timestamp": row["created_at"].isoformat(),
+                }
+                for row in rows
+            ]
+
+        except Exception as error:
+            log_event(
+                logging.ERROR,
+                "Failed to load leaderboard from database",
+                event="leaderboard_load_failed",
+                error=str(error),
+            )
+
+            return jsonify({
+                "success": False,
+                "error": "Failed to load leaderboard"
+            }), 500
+
+    else:
+        top_results = sorted(
+            results_memory_fallback,
+            key=lambda x: (x["wpm"], x["accuracy"]),
+            reverse=True
+        )[:10]
 
     log_event(
         logging.INFO,
