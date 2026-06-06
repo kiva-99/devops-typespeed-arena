@@ -38,6 +38,20 @@ resource "yandex_vpc_security_group" "app_sg" {
     v4_cidr_blocks = [var.my_ip_cidr]
   }
 
+  ingress {
+    protocol          = "TCP"
+    description       = "Node Exporter access from monitoring node"
+    port              = 9100
+    security_group_id = yandex_vpc_security_group.monitoring_sg.id
+  }
+
+  ingress {
+    protocol          = "TCP"
+    description       = "cAdvisor access from monitoring node"
+    port              = 8080
+    security_group_id = yandex_vpc_security_group.monitoring_sg.id
+  }
+
   egress {
     protocol       = "ANY"
     description    = "Allow all outbound traffic"
@@ -60,6 +74,52 @@ resource "yandex_vpc_security_group" "db_sg" {
     protocol       = "TCP"
     description    = "SSH from trusted IP"
     port           = 22
+    v4_cidr_blocks = [var.my_ip_cidr]
+  }
+
+  ingress {
+    protocol          = "TCP"
+    description       = "Node Exporter access from monitoring node"
+    port              = 9100
+    security_group_id = yandex_vpc_security_group.monitoring_sg.id
+  }
+
+  egress {
+    protocol       = "ANY"
+    description    = "Allow all outbound traffic"
+    v4_cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "yandex_vpc_security_group" "monitoring_sg" {
+  name       = "typespeed-monitoring-sg"
+  network_id = yandex_vpc_network.typespeed_network.id
+
+  ingress {
+    protocol       = "TCP"
+    description    = "SSH from trusted IP"
+    port           = 22
+    v4_cidr_blocks = [var.my_ip_cidr]
+  }
+
+  ingress {
+    protocol       = "TCP"
+    description    = "Grafana from trusted IP"
+    port           = 3000
+    v4_cidr_blocks = [var.my_ip_cidr]
+  }
+
+  ingress {
+    protocol       = "TCP"
+    description    = "Prometheus from trusted IP"
+    port           = 9090
+    v4_cidr_blocks = [var.my_ip_cidr]
+  }
+
+  ingress {
+    protocol       = "TCP"
+    description    = "Alertmanager from trusted IP"
+    port           = 9093
     v4_cidr_blocks = [var.my_ip_cidr]
   }
 

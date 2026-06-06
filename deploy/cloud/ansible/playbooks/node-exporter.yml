@@ -1,0 +1,7 @@
+---
+- name: Configure node exporter on app and db nodes
+  hosts: app:db
+  become: true
+  gather_facts: true
+  roles:
+    - node_exporter

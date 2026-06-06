@@ -1,0 +1,23 @@
+---
+- name: Install node exporter
+  ansible.builtin.apt:
+    name: prometheus-node-exporter
+    state: present
+    update_cache: true
+
+- name: Ensure node exporter is enabled and started
+  ansible.builtin.systemd:
+    name: prometheus-node-exporter
+    enabled: true
+    state: started
+
+- name: Check node exporter endpoint
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:9100/metrics"
+    method: GET
+    status_code: 200
+  register: node_exporter_check
+
+- name: Print node exporter status
+  ansible.builtin.debug:
+    msg: "node_exporter is available on {{ inventory_hostname }}:9100"

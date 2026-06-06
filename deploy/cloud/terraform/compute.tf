@@ -66,6 +66,12 @@ EOF
   scheduling_policy {
     preemptible = true
   }
+
+  lifecycle {
+    ignore_changes = [
+      boot_disk[0].initialize_params[0].image_id
+    ]
+  }
 }
 
 resource "yandex_compute_instance" "db_node" {
@@ -102,5 +108,65 @@ resource "yandex_compute_instance" "db_node" {
 
   scheduling_policy {
     preemptible = false
+  }
+
+  lifecycle {
+    ignore_changes = [
+      boot_disk[0].initialize_params[0].image_id
+    ]
+  }
+}
+
+resource "yandex_compute_instance" "monitoring_node" {
+  name        = "typespeed-monitoring-node"
+  hostname    = "typespeed-monitoring-node"
+  platform_id = var.vm_platform_id
+  zone        = var.zone
+
+  allow_stopping_for_update = true
+
+  resources {
+    cores         = 2
+    memory        = 2
+    core_fraction = 20
+  }
+
+  boot_disk {
+    initialize_params {
+      image_id = data.yandex_compute_image.ubuntu.id
+      size     = 20
+      type     = "network-hdd"
+    }
+  }
+
+  network_interface {
+    subnet_id          = yandex_vpc_subnet.typespeed_subnet.id
+    nat                = true
+    security_group_ids = [yandex_vpc_security_group.monitoring_sg.id]
+  }
+
+  metadata = {
+    ssh-keys = "ubuntu:${var.ssh_public_key}"
+
+    user-data = <<-EOF
+#cloud-config
+package_update: true
+
+packages:
+  - curl
+  - ca-certificates
+  - gnupg
+  - lsb-release
+
+runcmd:
+  - curl -fsSL https://get.docker.com | sh
+  - usermod -aG docker ubuntu
+  - mkdir -p /opt/typespeed-monitoring
+  - chown -R ubuntu:ubuntu /opt/typespeed-monitoring
+EOF
+  }
+
+  scheduling_policy {
+    preemptible = true
   }
 }

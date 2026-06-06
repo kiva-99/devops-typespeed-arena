@@ -1,0 +1,67 @@
+---
+- name: Create monitoring directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    mode: "0755"
+  loop:
+    - /opt/typespeed-monitoring
+    - /opt/typespeed-monitoring/prometheus
+    - /opt/typespeed-monitoring/alertmanager
+    - /opt/typespeed-monitoring/dashboards
+
+- name: Upload Prometheus config
+  ansible.builtin.template:
+    src: prometheus.yml.j2
+    dest: /opt/typespeed-monitoring/prometheus/prometheus.yml
+    owner: ubuntu
+    group: ubuntu
+    mode: "0644"
+
+- name: Upload Alertmanager config
+  ansible.builtin.template:
+    src: alertmanager.yml.j2
+    dest: /opt/typespeed-monitoring/alertmanager/alertmanager.yml
+    owner: ubuntu
+    group: ubuntu
+    mode: "0644"
+
+- name: Upload Grafana datasource provisioning
+  ansible.builtin.template:
+    src: grafana-datasources.yml.j2
+    dest: /opt/typespeed-monitoring/grafana-datasources.yml
+    owner: ubuntu
+    group: ubuntu
+    mode: "0644"
+
+- name: Upload Grafana dashboard provisioning
+  ansible.builtin.template:
+    src: grafana-dashboards.yml.j2
+    dest: /opt/typespeed-monitoring/grafana-dashboards.yml
+    owner: ubuntu
+    group: ubuntu
+    mode: "0644"
+
+- name: Upload Grafana dashboard files
+  ansible.builtin.copy:
+    src: dashboards/
+    dest: /opt/typespeed-monitoring/dashboards/
+    owner: ubuntu
+    group: ubuntu
+    mode: "0644"
+
+- name: Upload monitoring docker compose
+  ansible.builtin.template:
+    src: docker-compose.monitoring.yml.j2
+    dest: /opt/typespeed-monitoring/docker-compose.yml
+    owner: ubuntu
+    group: ubuntu
+    mode: "0644"
+
+- name: Start monitoring stack
+  ansible.builtin.command:
+    cmd: docker compose up -d
+    chdir: /opt/typespeed-monitoring
+  changed_when: true

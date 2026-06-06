@@ -1,0 +1,48 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+scrape_configs:
+  - job_name: "prometheus"
+    static_configs:
+      - targets:
+          - "prometheus:9090"
+
+  - job_name: "monitoring-node"
+    static_configs:
+      - targets:
+          - "10.10.10.36:9100"
+
+  - job_name: "typespeed-app-node"
+    static_configs:
+      - targets:
+          - "10.10.10.35:9100"
+
+  - job_name: "typespeed-db-node"
+    static_configs:
+      - targets:
+          - "10.10.10.16:9100"
+
+  - job_name: "typespeed-app-http"
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+          - "http://51.250.84.81"
+          - "http://51.250.84.81/health"
+          - "http://51.250.84.81/api/texts"
+          - "http://51.250.84.81/api/leaderboard"
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
