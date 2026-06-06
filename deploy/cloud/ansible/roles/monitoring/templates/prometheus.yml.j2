@@ -35,10 +35,10 @@ scrape_configs:
       module: [http_2xx]
     static_configs:
       - targets:
-          - "http://111.88.255.27"
-          - "http://111.88.255.27/health"
-          - "http://111.88.255.27/api/texts"
-          - "http://111.88.255.27/api/leaderboard"
+          - "http://typespeedarena.ru"
+          - "http://typespeedarena.ru/health"
+          - "http://typespeedarena.ru/api/texts"
+          - "http://typespeedarena.ru/api/leaderboard"
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target
@@ -46,3 +46,4 @@ scrape_configs:
         target_label: instance
       - target_label: __address__
         replacement: blackbox-exporter:9115
+

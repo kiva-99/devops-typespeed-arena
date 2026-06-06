@@ -145,7 +145,7 @@
       },
       "targets": [
         {
-          "expr": "probe_success",
+          "expr": "probe_success{job=\"typespeed-app-http\", instance=~\"http://typespeedarena.ru.*\"} * 100",
           "legendFormat": "{{instance}}"
         }
       ]
@@ -172,7 +172,7 @@
       },
       "targets": [
         {
-          "expr": "probe_duration_seconds",
+          "expr": "probe_duration_seconds{job=\"typespeed-app-http\", instance=~\"http://typespeedarena.ru.*\"}",
           "legendFormat": "{{instance}}"
         }
       ]
