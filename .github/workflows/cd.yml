@@ -82,6 +82,12 @@ jobs:
 
             cd "$APP_DIR"
 
+            if ! command -v jq >/dev/null 2>&1; then
+              echo "[deploy] Installing jq for JSON health validation"
+              sudo apt-get update
+              sudo apt-get install -y jq
+            fi
+
             if [ -f "$IMAGE_ENV_FILE" ]; then
               CURRENT_IMAGE="$(grep "^BACKEND_IMAGE=" "$IMAGE_ENV_FILE" | cut -d= -f2-)"
             else
@@ -109,8 +115,13 @@ jobs:
             for i in $(seq 1 30); do
               if curl -fsS http://localhost:5001/health >/tmp/typespeed-health.json; then
                 cat /tmp/typespeed-health.json
-                HEALTH_OK="true"
-                break
+
+                if jq -e ".status == \"healthy\" and .database == \"connected\"" /tmp/typespeed-health.json >/dev/null; then
+                  HEALTH_OK="true"
+                  break
+                fi
+
+                echo "[deploy] Backend health endpoint responded, but JSON status is not healthy"
               fi
 
               echo "[deploy] Backend is not healthy yet, attempt ${i}/30"
@@ -127,7 +138,9 @@ jobs:
               docker compose --env-file backend-image.env up -d backend
 
               echo "[rollback] Checking previous backend health"
-              curl -fsS http://localhost:5001/health
+              curl -fsS http://localhost:5001/health >/tmp/typespeed-rollback-health.json
+              cat /tmp/typespeed-rollback-health.json
+              jq -e ".status == \"healthy\" and .database == \"connected\"" /tmp/typespeed-rollback-health.json >/dev/null
 
               exit 1
             fi
@@ -142,7 +155,7 @@ jobs:
 
       - name: Check production health
         run: |
-          curl -fsS http://${{ secrets.APP_HOST }}/health
+          curl -fsS http://${{ secrets.APP_HOST }}/health | jq -e ".status == \"healthy\" and .database == \"connected\"" >/dev/null
 
       - name: Remove GitHub runner SSH access
         if: always()
