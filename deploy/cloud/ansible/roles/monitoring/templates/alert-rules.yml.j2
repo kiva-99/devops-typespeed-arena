@@ -1,0 +1,38 @@
+groups:
+  - name: typespeed-alerts
+    rules:
+      - alert: TypeSpeedAppDown
+        expr: probe_success{job="typespeed-app-http", instance="http://typespeedarena.ru"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "TypeSpeed site is down"
+          description: "Главная страница TypeSpeed недоступна более 1 минуты."
+
+      - alert: TypeSpeedHealthDown
+        expr: probe_success{job="typespeed-app-http", instance="http://typespeedarena.ru/health"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "TypeSpeed health endpoint is down"
+          description: "Health endpoint backend недоступен более 1 минуты."
+
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage"
+          description: "На {% raw %}{{ $labels.instance }}{% endraw %} использование RAM выше 85% более 5 минут."
+
+      - alert: HighDiskUsage
+        expr: (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"})) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High disk usage"
+          description: "На {% raw %}{{ $labels.instance }}{% endraw %} использование диска выше 85% более 5 минут."

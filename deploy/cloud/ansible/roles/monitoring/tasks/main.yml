@@ -9,6 +9,7 @@
   loop:
     - /opt/typespeed-monitoring
     - /opt/typespeed-monitoring/prometheus
+    - /opt/typespeed-monitoring/prometheus/rules
     - /opt/typespeed-monitoring/alertmanager
     - /opt/typespeed-monitoring/dashboards
 
@@ -16,6 +17,14 @@
   ansible.builtin.template:
     src: prometheus.yml.j2
     dest: /opt/typespeed-monitoring/prometheus/prometheus.yml
+    owner: ubuntu
+    group: ubuntu
+    mode: "0644"
+
+- name: Upload Prometheus alert rules
+  ansible.builtin.template:
+    src: alert-rules.yml.j2
+    dest: /opt/typespeed-monitoring/prometheus/rules/alert-rules.yml
     owner: ubuntu
     group: ubuntu
     mode: "0644"
@@ -65,3 +74,5 @@
     cmd: docker compose up -d
     chdir: /opt/typespeed-monitoring
   changed_when: true
+
+

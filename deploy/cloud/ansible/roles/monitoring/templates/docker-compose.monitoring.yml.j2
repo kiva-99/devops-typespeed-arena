@@ -8,6 +8,7 @@ services:
 
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/rules:/etc/prometheus/rules:ro
       - prometheus_data:/prometheus
 
     command:
@@ -97,3 +98,6 @@ volumes:
   grafana_data:
   alertmanager_data:
   loki_data:
+
+
+
