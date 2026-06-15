@@ -1,321 +1,242 @@
-TypeSpeed Arena - Architecture Overview
+ARCHITECTURE DOCUMENT
 
-1. ЦЕЛЬ ПРОЕКТА
+Project:
+TypeSpeed Arena
 
-TypeSpeed Arena — дипломный DevOps-проект.
+============================================================
+1. ЦЕЛЕВАЯ АРХИТЕКТУРА
+============================================================
 
-Цель:
-- автоматизированное развертывание приложения в облаке;
-- управление инфраструктурой через Terraform;
-- настройка серверов через Ansible;
-- CI/CD через GitHub Actions;
-- мониторинг и логирование;
-- резервное копирование данных;
-- безопасная и воспроизводимая инфраструктура.
+                      Internet
+                          |
+                          |
+                    typespeedarena.ru
+                          |
+                          |
+                    App Node
+                 (Nginx + Backend)
+                          |
+              -----------------------
+              |                     |
+              |                     |
+          PostgreSQL           Monitoring
+           DB Node               Node
+                            Prometheus
+                            Grafana
+                            Loki
+                            Alertmanager
 
---------------------------------------------------
-
-2. ТЕКУЩЕЕ СОСТОЯНИЕ
-
-Развернуто 3 виртуальные машины в Yandex Cloud:
-
-1. app-node
-2. db-node
-3. monitoring-node
-
-Также используются:
-
-- VPC
-- Subnet
-- Security Groups
-- Container Registry
-- Object Storage
-
---------------------------------------------------
-
-3. APP NODE
+============================================================
+2. APP NODE
+============================================================
 
 Назначение:
 
-- frontend
-- backend
-- прием пользовательского трафика
-- выполнение деплоя
+- frontend;
+- backend;
+- reverse proxy;
+- отправка логов.
 
-Текущее состояние:
+Сервисы:
 
-- nginx frontend
-- backend container
-- Docker Compose
-- образы берутся из Yandex Container Registry
+nginx
+backend
+promtail
 
-Сейчас приложение работает именно через Docker Compose.
+Порты:
 
---------------------------------------------------
+80
+443 (планируется)
 
-4. DB NODE
+Внутренние сервисы:
 
-Назначение:
+5001 backend
 
-- PostgreSQL
-- хранение данных приложения
-
-Реализовано:
-
-- PostgreSQL установлен через Ansible
-- отдельная VM
-- доступ по внутреннему IP
-- резервное копирование в Object Storage
-
---------------------------------------------------
-
-5. MONITORING NODE
+============================================================
+3. DATABASE NODE
+============================================================
 
 Назначение:
 
-- мониторинг
-- визуализация
-- алертинг
+- хранение данных приложения.
 
-Развернуто:
+СУБД:
 
-- Prometheus
-- Grafana
-- Alertmanager
-- Blackbox Exporter
-- Node Exporter
+PostgreSQL 14
 
-Мониторятся:
+Доступ:
 
-- app-node
-- db-node
-- monitoring-node
-- HTTP endpoint приложения
+только из внутренней сети.
 
---------------------------------------------------
+============================================================
+4. MONITORING NODE
+============================================================
 
-6. CI/CD
+Назначение:
+
+централизованный мониторинг.
+
+Сервисы:
+
+Prometheus
+Grafana
+Loki
+Alertmanager
+Blackbox Exporter
+Node Exporter
+
+============================================================
+5. INFRASTRUCTURE AS CODE
+============================================================
+
+Terraform отвечает за:
+
+- VPC;
+- Subnet;
+- Security Groups;
+- Virtual Machines;
+- DNS;
+- Container Registry;
+- Object Storage.
+
+Remote State хранится в Yandex Object Storage.
+
+============================================================
+6. CONFIGURATION MANAGEMENT
+============================================================
+
+Ansible отвечает за:
+
+- установку Docker;
+- настройку PostgreSQL;
+- настройку мониторинга;
+- настройку логирования;
+- настройку резервного копирования;
+- деплой приложения.
+
+============================================================
+7. CI/CD
+============================================================
+
+GitHub Actions:
 
 CI:
-
-GitHub Actions выполняет:
-
-- checkout
-- python compile check
-- dependency install
-- docker compose build
-- запуск приложения
-- health check
-- smoke tests
+- проверка проекта;
+- сборка.
 
 CD:
+- сборка Docker image;
+- push в Registry;
+- деплой на app-node;
+- health-check;
+- rollback.
 
-GitHub Actions выполняет:
+============================================================
+8. МОНИТОРИНГ
+============================================================
 
-- сборку Docker image
-- push в Container Registry
-- подключение к app-node
-- docker compose pull
-- docker compose up -d
-- health check
+Prometheus:
 
---------------------------------------------------
+- node_exporter;
+- blackbox_exporter;
+- application metrics.
 
-7. TERRAFORM
+Grafana:
 
-Terraform создает:
+- инфраструктурные дашборды;
+- application dashboards;
+- logs dashboards.
 
-- сеть
-- подсеть
-- security groups
-- container registry
-- object storage
-- service accounts
-- app-node
-- db-node
-- monitoring-node
+============================================================
+9. ЛОГИРОВАНИЕ
+============================================================
 
-Проблема:
+Backend
+ ->
+Promtail
+ ->
+Loki
+ ->
+Grafana
 
-Состояние Terraform пока локальное.
+============================================================
+10. РЕЗЕРВНОЕ КОПИРОВАНИЕ
+============================================================
 
-Необходимо:
+PostgreSQL
+ ->
+pg_dump
+ ->
+архив
+ ->
+Object Storage
 
-- вынести state в Object Storage
-- настроить remote backend
+Проверено восстановление резервной копии.
 
---------------------------------------------------
+============================================================
+11. БЕЗОПАСНОСТЬ
+============================================================
 
-8. ANSIBLE
+Security Groups:
 
-Используемые роли:
+SSH:
+только trusted IP
 
-common
-docker
-postgres
-backup
-app
-logging
-monitoring
-node_exporter
+Grafana:
+только trusted IP
 
-Ansible отвечает за настройку всей инфраструктуры после создания Terraform.
+Prometheus:
+закрыт
 
---------------------------------------------------
+Alertmanager:
+закрыт
 
-9. РЕЗЕРВНОЕ КОПИРОВАНИЕ
+PostgreSQL:
+только внутренняя сеть
 
-Реализовано:
+============================================================
+12. РАЗВИТИЕ ПРОЕКТА
+============================================================
 
-- pg_dump
-- gzip
-- загрузка в Object Storage
-- cron запуск
+Следующий этап развития:
 
-Требуется:
+Kubernetes
 
-- контроль восстановления
-- периодическая проверка backup
+Преимущества:
 
---------------------------------------------------
+- self-healing;
+- rolling update;
+- horizontal scaling;
+- declarative deployment.
 
-10. МОНИТОРИНГ
+Helm
 
-Реализовано:
+- шаблонизация Kubernetes-манифестов.
 
-- Prometheus
-- Grafana
-- Alertmanager
-- Node Exporter
-- Blackbox Exporter
+ArgoCD
 
-Требуется:
+- GitOps модель управления.
 
-- alert rules
-- уведомления
-- расширение dashboard
+HTTPS
 
---------------------------------------------------
+- TLS сертификаты.
 
-11. ЛОГИРОВАНИЕ
+Zero-Downtime Deployment
 
-Сейчас:
+- обновление приложения без остановки сервиса.
 
-- backend пишет логи
-- настроен logrotate
+Horizontal Scaling
 
-Целевая схема:
+- несколько экземпляров backend.
 
-- Loki
-- Promtail или Grafana Alloy
-- Grafana для просмотра логов
+Multi-Environment
 
-ELK использовать в дипломе не планируется из-за ресурсов.
+- dev;
+- stage;
+- prod.
 
---------------------------------------------------
+Managed PostgreSQL
 
-12. БЕЗОПАСНОСТЬ
-
-Уже реализовано:
-
-- Security Groups
-- ограничение SSH
-- отдельная DB VM
-- GitHub открывает SSH только на время деплоя
-
-Необходимо:
-
-- убрать публичный IP с db-node
-- перейти на OIDC вместо постоянного ключа YC
-- использовать Vault/Secrets
-- настроить HTTPS
-
---------------------------------------------------
-
-13. KUBERNETES
-
-Сейчас:
-
-Docker Compose
-
-Планируется:
-
-k3s на app-node
-
-Будет использоваться:
-
-- Deployment
-- Service
-- Ingress
-- ConfigMap
-- Secret
-- Liveness Probe
-- Readiness Probe
-
-Причина:
-
-- автоматические rollout
-- rollback
-- управление версиями
-- более правильная production архитектура
-
---------------------------------------------------
-
-14. КРИТИЧЕСКИЕ НЕЗАКРЫТЫЕ ЗАДАЧИ
-
-1. Remote Terraform State
-2. k3s
-3. Deploy по git SHA
-4. Rollback
-5. Blue/Green или Rolling Update
-6. Loki
-7. Secrets Management
-8. Закрытие db-node от интернета
-9. HTTPS
-10. Домен
-
---------------------------------------------------
-
-15. ЦЕЛЕВАЯ АРХИТЕКТУРА
-
-Developer
-    |
-GitHub
-    |
-GitHub Actions
-    |
-Container Registry
-    |
-app-node (k3s)
-    |
-    +-- frontend
-    +-- backend
-
-db-node
-    |
-    +-- PostgreSQL
-    +-- backups
-
-monitoring-node
-    |
-    +-- Prometheus
-    +-- Grafana
-    +-- Alertmanager
-    +-- Loki
-
---------------------------------------------------
-
-16. БЛИЖАЙШИЙ ПЛАН
-
-1. Запустить VM.
-2. Проверить инфраструктуру.
-3. Настроить remote Terraform state.
-4. Подготовить k3s.
-5. Перенести приложение в Kubernetes.
-6. Переделать CD на git SHA.
-7. Реализовать rollback.
-8. Добавить Loki.
-9. Закрыть db-node от интернета.
-10. Настроить HTTPS и домен.
-
-После этого диплом можно будет считать практически завершённым.
+- автоматический failover;
+- репликация;
+- резервирование.
